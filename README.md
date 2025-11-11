@@ -1,4 +1,4 @@
-# DocShare Mini - Full-Stack Document Sharing Application
+# DocShare - Full-Stack Document Sharing Application
 
 A minimal full-stack web application for uploading and sharing documents with secure access control and audit logging.
 

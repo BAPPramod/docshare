@@ -4,7 +4,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center shrink-0">
-            <h1 class="text-2xl font-bold text-gray-900">DocShare Mini</h1>
+            <h1 class="text-2xl font-bold text-gray-900">DocShare</h1>
           </div>
           <div class="flex items-center space-x-4 shrink-0">
             <span class="text-gray-600">Welcome, {{ authStore.user?.name }}</span>
