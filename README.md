@@ -19,7 +19,7 @@ A minimal full-stack web application for uploading and sharing documents with se
 
 ## Project Overview
 - **Frontend:** Vue 3 + TypeScript + Tailwind CSS + TanStack Query (Vue Query)  
-- **Backend:** Express.js + TypeScript + Prisma ORM + SQLite  
+- **Backend:** Express.js + TypeScript + Prisma ORM + PostgreSQL  
 - **Authentication:** Email/password with JWT tokens  
 - **File Management:** Upload, download, share, delete, and audit logging
 
@@ -30,6 +30,7 @@ A minimal full-stack web application for uploading and sharing documents with se
 ### Prerequisites
 - Node.js (v18+)
 - npm or yarn
+- PostgreSQL (v13+) — running locally, in Docker, or via a managed service
 
 ### Backend Setup
 
@@ -46,17 +47,27 @@ npm install
 3. **Setup environment variables:**
 ```bash
 cp .env.example .env
-# Edit .env with your preferences
+# Edit .env and set DATABASE_URL to your PostgreSQL instance
+# Example: postgresql://postgres:postgres@localhost:5432/docshare?schema=public
 ```
 
-4. **Setup database:**
+4. **Create the database (one-time):**
+```bash
+# If you have a local PostgreSQL server running:
+createdb docshare
+# Or via psql: CREATE DATABASE docshare;
+# Or with Docker:
+# docker run --name docshare-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=docshare -p 5432:5432 -d postgres:16
+```
+
+5. **Setup database:**
 ```bash
 npm run db:generate
 npm run db:migrate
 npm run db:seed
 ```
 
-5. **Start development server:**
+6. **Start development server:**
 ```bash
 npm run dev
 ```
@@ -184,7 +195,7 @@ These accounts are pre-seeded for demo purposes:
 
 ### Backend Choices
 - **Express.js + TypeScript**: Mature, well-documented web framework
-- **SQLite + Prisma**: Simple setup for demo, easy migration to PostgreSQL
+- **PostgreSQL + Prisma**: Production-grade relational database with a typesafe ORM
 - **JWT Authentication**: Stateless, scalable authentication approach
 - **Multer**: Robust file upload handling with validation
 
@@ -196,6 +207,6 @@ These accounts are pre-seeded for demo purposes:
 
 ### Trade-offs Made
 - **Local File Storage**: Chosen for simplicity, would use cloud storage in production
-- **SQLite Database**: Great for development/demo, PostgreSQL recommended for production
+- **PostgreSQL Database**: Robust relational store; managed Postgres (RDS, Supabase, Neon) recommended in production
 - **Simple Authentication**: Basic email/password, would add OAuth and MFA in production
 - **Client-side Routing**: SPA approach chosen over SSR for development speed
