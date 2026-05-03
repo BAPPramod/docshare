@@ -1,0 +1,41 @@
+name: Keep Render Backend Awake
+
+on:
+  schedule:
+    # Every 10 minutes. Render's free tier idles after 15 minutes of inactivity,
+    # so a 10-minute cadence keeps the service warm with margin for delays in
+    # GitHub Actions' cron scheduler (which can be a few minutes off at peak).
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        run: |
+          set -euo pipefail
+          URL="https://docshare-backend-cxm0.onrender.com/health"
+          echo "Pinging $URL"
+          # --max-time 90 covers Render's worst-case cold start (~30-60s).
+          # --retry handles transient 5xx and connection failures.
+          status_and_time=$(curl -sS -o /tmp/body.txt -w "%{http_code} %{time_total}\n" \
+            --max-time 90 \
+            --retry 3 --retry-delay 5 --retry-connrefused \
+            "$URL")
+          status=${status_and_time%% *}
+          time_s=${status_and_time##* }
+          echo "HTTP $status in ${time_s}s"
+          echo "Body: $(cat /tmp/body.txt)"
+          if [ "$status" != "200" ]; then
+            echo "Unexpected status: $status"
+            exit 1
+          fi
