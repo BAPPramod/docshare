@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/auth';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 10000,
+  timeout: 60000,
 });
 
 // Request interceptor to add auth token
