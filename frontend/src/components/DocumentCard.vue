@@ -1,16 +1,16 @@
 <template>
-  <div class="card hover:shadow-lg transition-shadow">
-    <div class="flex items-start justify-between">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center space-x-2 mb-2">
-          <div class="p-2 rounded-lg bg-gray-100">
+  <div class="card overflow-hidden transition-shadow hover:shadow-lg">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0 flex-1">
+        <div class="mb-2 flex items-start gap-2">
+          <div class="shrink-0 rounded-lg bg-gray-100 p-2">
             <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <div>
-            <h4 class="text-lg font-medium text-gray-900 truncate">
+          <div class="min-w-0 flex-1">
+            <h4 class="break-words text-lg font-medium leading-snug text-gray-900">
               {{ document.originalName }}
             </h4>
             <p class="text-sm text-gray-500">
@@ -19,19 +19,32 @@
           </div>
         </div>
         
-        <div class="text-sm text-gray-600 mb-3">
-          <p><strong>Owner:</strong> {{ document.owner.name }} ({{ document.owner.email }})</p>
-          <p v-if="document.shares.length > 0">
+        <div class="min-w-0 space-y-1 text-sm text-gray-600">
+          <p class="truncate" :title="`${document.owner.name} (${document.owner.email})`">
+            <strong>Owner:</strong> {{ document.owner.name }} ({{ document.owner.email }})
+          </p>
+          <p
+            v-if="document.shares.length > 0"
+            class="truncate"
+            :title="document.shares.map(s => s.user.name).join(', ')"
+          >
             <strong>Shared with:</strong> {{ document.shares.map(s => s.user.name).join(', ') }}
           </p>
         </div>
       </div>
       
-      <div class="flex items-center space-x-2 ml-4">
+      <div class="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+        <button
+          @click="isPreviewOpen = true"
+          class="btn whitespace-nowrap bg-gray-600 text-white hover:bg-gray-700 text-sm"
+        >
+          View
+        </button>
+
         <button
           @click="handleDownload"
           :disabled="downloadMutation.isPending.value"
-          class="btn bg-green-600 text-white hover:bg-green-700 text-sm"
+          class="btn whitespace-nowrap bg-green-600 text-white hover:bg-green-700 text-sm"
         >
           {{ downloadMutation.isPending.value ? 'Downloading...' : 'Download' }}
         </button>
@@ -39,7 +52,7 @@
         <button
           v-if="isOwner"
           @click="$emit('share', document)"
-          class="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
+          class="btn whitespace-nowrap bg-blue-600 text-white hover:bg-blue-700 text-sm"
         >
           Share
         </button>
@@ -48,7 +61,7 @@
           v-if="isOwner"
           @click="handleDelete"
           :disabled="deleteMutation.isPending.value"
-          class="btn btn-danger text-sm"
+          class="btn btn-danger whitespace-nowrap text-sm"
         >
           {{ deleteMutation.isPending.value ? 'Deleting...' : 'Delete' }}
         </button>
@@ -59,11 +72,32 @@
          class="mt-2 text-red-600 text-sm">
       {{ getErrorMessage(downloadMutation.error.value) || getErrorMessage(deleteMutation.error.value) }}
     </div>
+
+    <DocumentPreviewModal
+      :is-open="isPreviewOpen"
+      :document="document"
+      @close="isPreviewOpen = false"
+    />
+
+    <ConfirmModal
+      :is-open="isDeleteConfirmOpen"
+      title="Delete document?"
+      :message="deleteConfirmMessage"
+      confirm-label="Delete"
+      cancel-label="Cancel"
+      loading-label="Deleting..."
+      :loading="deleteMutation.isPending.value"
+      variant="danger"
+      @confirm="confirmDelete"
+      @cancel="isDeleteConfirmOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import DocumentPreviewModal from '@/components/DocumentPreviewModal.vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { useAuthStore } from '@/stores/auth';
 import { documentsAPI, type Document } from '@/services/api';
@@ -80,6 +114,13 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const queryClient = useQueryClient();
+const isPreviewOpen = ref(false);
+const isDeleteConfirmOpen = ref(false);
+
+const deleteConfirmMessage = computed(
+  () =>
+    `Are you sure you want to delete "${props.document.originalName}"? This action cannot be undone.`
+);
 
 const isOwner = computed(() => 
   authStore.user?.id === props.document.owner.id
@@ -104,6 +145,7 @@ const downloadMutation = useMutation({
 const deleteMutation = useMutation({
   mutationFn: () => documentsAPI.delete(props.document.id),
   onSuccess: () => {
+    isDeleteConfirmOpen.value = false;
     queryClient.invalidateQueries({ queryKey: ['documents'] });
   }
 });
@@ -113,9 +155,11 @@ const handleDownload = () => {
 };
 
 const handleDelete = () => {
-  if (confirm(`Are you sure you want to delete "${props.document.originalName}"?`)) {
-    deleteMutation.mutate();
-  }
+  isDeleteConfirmOpen.value = true;
+};
+
+const confirmDelete = () => {
+  deleteMutation.mutate();
 };
 
 const formatFileSize = (bytes: number): string => {

@@ -66,26 +66,72 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const getAuthorizedDocument = async (documentId: number, userId: number) => {
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      OR: [
+        { ownerId: userId },
+        { shares: { some: { userId } } }
+      ]
+    }
+  });
+
+  if (!document) {
+    return null;
+  }
+
+  const filePath = path.resolve(document.path);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  return { document, filePath };
+};
+
+export const viewDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    const result = await getAuthorizedDocument(documentId, userId);
+    if (!result) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const { document, filePath } = result;
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'view',
+        documentId,
+        userId
+      }
+    });
+
+    res.setHeader('Content-Type', document.mimeType);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(document.originalName)}"`
+    );
+    res.sendFile(filePath);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to view document' });
+  }
+};
+
 export const downloadDocument = async (req: AuthRequest, res: Response) => {
   try {
     const documentId = parseInt(req.params.id);
     const userId = req.user!.userId;
 
-    const document = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        OR: [
-          { ownerId: userId },
-          { shares: { some: { userId } } }
-        ]
-      }
-    });
-
-    if (!document) {
+    const result = await getAuthorizedDocument(documentId, userId);
+    if (!result) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Log the download
+    const { document, filePath } = result;
+
     await prisma.auditLog.create({
       data: {
         action: 'download',
@@ -93,11 +139,6 @@ export const downloadDocument = async (req: AuthRequest, res: Response) => {
         userId
       }
     });
-
-    const filePath = path.resolve(document.path);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found on disk' });
-    }
 
     res.download(filePath, document.originalName);
   } catch (error) {

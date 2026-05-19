@@ -25,7 +25,7 @@
               No documents uploaded yet. Upload your first document above!
             </p>
           </div>
-          <div v-else class="grid gap-4">
+          <div v-else class="grid min-w-0 gap-4">
             <DocumentCard
               v-for="document in documentsQuery.data.value?.owned"
               :key="`owned-${document.id}`"
@@ -43,7 +43,7 @@
               No documents shared with you yet.
             </p>
           </div>
-          <div v-else class="grid gap-4">
+          <div v-else class="grid min-w-0 gap-4">
             <DocumentCard
               v-for="document in documentsQuery.data.value?.shared"
               :key="`shared-${document.id}`"
@@ -87,9 +87,9 @@ const documentsQuery = useQuery({
   refetchOnWindowFocus: false
 });
 
-const onUploadSuccess = (document: Document) => {
+const onUploadSuccess = (documents: Document[]) => {
   // The query will automatically refetch due to invalidation in the upload component
-  console.log('Document uploaded successfully:', document);
+  console.log(`${documents.length} document(s) uploaded successfully`);
 };
 
 const openShareModal = (document: Document) => {

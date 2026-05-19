@@ -1,12 +1,9 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-      <div class="flex items-center mb-4">
-        <div class="min-w-0 flex-1 mr-3">
-          <h3
-            class="text-lg font-medium text-gray-900 truncate"
-            :title="titleText"
-          >
+      <div class="mb-4 flex items-start gap-3">
+        <div class="min-w-0 flex-1">
+          <h3 class="break-words text-lg font-medium leading-snug text-gray-900">
             Share "{{ document?.originalName }}"
           </h3>
         </div>
@@ -60,13 +57,15 @@
           <div
             v-for="share in localShares"
             :key="share.user.id"
-            class="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+            class="flex items-start justify-between gap-2 rounded-md bg-gray-50 p-2"
           >
-            <span class="text-sm">{{ share.user.name }} ({{ share.user.email }})</span>
+            <span class="min-w-0 flex-1 break-words text-sm">
+              {{ share.user.name }} ({{ share.user.email }})
+            </span>
             <button
               @click="handleUnshare(share.user.id)"
               :disabled="unshareMutation.isPending.value"
-              class="text-red-600 hover:text-red-800 text-sm"
+              class="shrink-0 text-sm text-red-600 hover:text-red-800"
             >
               Remove
             </button>
@@ -78,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { sharesAPI, type Document } from '@/services/api';
 import { getErrorMessage } from '@/utils/error';
@@ -98,11 +97,6 @@ const shareEmail = ref('');
 
 // Local reactive copy of shares so UI updates instantly
 const localShares = ref(props.document?.shares ?? []);
-
-const titleText = computed(() => {
-  const name = props.document?.originalName;
-  return name ? 'Share "' + name + '"' : 'Share';
-});
 
 watch(() => props.document, (doc) => {
   localShares.value = doc?.shares ?? [];

@@ -74,6 +74,7 @@ export const documentsAPI = {
     const res = await api.get<DocumentsResponse>('/documents');
     return res.data;
   },
+  view: (id: number) => api.get(`/documents/${id}/view`, { responseType: 'blob' }),
   download: (id: number) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
   delete: (id: number) => api.delete(`/documents/${id}`),
 };
