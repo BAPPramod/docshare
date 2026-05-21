@@ -63,7 +63,7 @@
               {{ share.user.name }} ({{ share.user.email }})
             </span>
             <button
-              @click="handleUnshare(share.user.id)"
+              @click="handleUnshare(share.user)"
               :disabled="unshareMutation.isPending.value"
               class="shrink-0 text-sm text-red-600 hover:text-red-800"
             >
@@ -73,13 +73,27 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      :is-open="!!removalTarget"
+      title="Remove access?"
+      :message="removalMessage"
+      confirm-label="Remove"
+      cancel-label="Cancel"
+      loading-label="Removing..."
+      :loading="unshareMutation.isPending.value"
+      variant="danger"
+      @confirm="confirmUnshare"
+      @cancel="cancelUnshare"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
-import { sharesAPI, type Document } from '@/services/api';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import { sharesAPI, type Document, type User } from '@/services/api';
 import { getErrorMessage } from '@/utils/error';
 
 interface Props {
@@ -120,19 +134,23 @@ const shareMutation = useMutation({
   }
 });
 
+const removalTarget = ref<User | null>(null);
+
+const removalMessage = computed(() => {
+  if (!removalTarget.value) return '';
+  const { name, email } = removalTarget.value;
+  return `Remove access for ${name} (${email})? They will no longer be able to view or download this document.`;
+});
+
 const unshareMutation = useMutation({
   mutationFn: ({ documentId, userId }: { documentId: number; userId: number }) =>
     sharesAPI.unshare(documentId, userId),
-  onSuccess: () => {
+  onSuccess: (_data, variables) => {
     queryClient.invalidateQueries({ queryKey: ['documents'] });
-    // Optimistically update local shares list to reflect removal
-    if (props.document) {
-      localShares.value = localShares.value.filter(s => s.user.id !== pendingRemovalUserId.value);
-    }
+    localShares.value = localShares.value.filter(s => s.user.id !== variables.userId);
+    removalTarget.value = null;
   }
 });
-
-const pendingRemovalUserId = ref<number | null>(null);
 
 const handleShare = () => {
   if (shareEmail.value && props.document) {
@@ -143,13 +161,22 @@ const handleShare = () => {
   }
 };
 
-const handleUnshare = (userId: number) => {
-  if (props.document && confirm('Remove access for this user?')) {
-    pendingRemovalUserId.value = userId;
+const handleUnshare = (user: User) => {
+  removalTarget.value = user;
+};
+
+const confirmUnshare = () => {
+  if (props.document && removalTarget.value) {
     unshareMutation.mutate({
       documentId: props.document.id,
-      userId
+      userId: removalTarget.value.id
     });
+  }
+};
+
+const cancelUnshare = () => {
+  if (!unshareMutation.isPending.value) {
+    removalTarget.value = null;
   }
 };
 
@@ -157,6 +184,7 @@ const handleUnshare = (userId: number) => {
 watch(() => props.isOpen, (isOpen) => {
   if (!isOpen) {
     shareEmail.value = '';
+    removalTarget.value = null;
     shareMutation.reset();
     unshareMutation.reset();
   }
